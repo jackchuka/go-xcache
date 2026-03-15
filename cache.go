@@ -80,12 +80,12 @@ func (c *Cache[V]) Get(key string) (V, bool) {
 	var e entry[V]
 	if err := c.codec.Unmarshal(data, &e); err != nil {
 		// Corrupt file — delete it
-		os.Remove(path)
+		_ = os.Remove(path)
 		return zero, false
 	}
 
 	if e.isExpired() {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return zero, false
 	}
 
@@ -127,8 +127,8 @@ func (c *Cache[V]) Set(key string, value V, ttl time.Duration) error {
 	}
 	tmpPath := tmp.Name()
 	defer func() {
-		tmp.Close()
-		os.Remove(tmpPath)
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
 	}()
 
 	if _, err := tmp.Write(data); err != nil {

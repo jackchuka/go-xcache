@@ -141,8 +141,8 @@ func TestGet_CorruptFile(t *testing.T) {
 	c := New[sample]("test-tool", WithNamespace("data"))
 
 	path := c.filepath("k1")
-	os.MkdirAll(filepath.Dir(path), 0o755)
-	os.WriteFile(path, []byte("not json"), 0o644)
+	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+	_ = os.WriteFile(path, []byte("not json"), 0o644)
 
 	_, ok := c.Get("k1")
 	if ok {
@@ -378,9 +378,9 @@ func TestGetOrSet_FnSuccessSetFails(t *testing.T) {
 	testDir(t)
 	c := New[sample]("test-tool", WithNamespace("readonly"))
 
-	os.MkdirAll(c.dir, 0o755)
-	os.Chmod(c.dir, 0o444)
-	defer os.Chmod(c.dir, 0o755)
+	_ = os.MkdirAll(c.dir, 0o755)
+	_ = os.Chmod(c.dir, 0o444)
+	defer func() { _ = os.Chmod(c.dir, 0o755) }()
 
 	val, err := c.GetOrSet("k1", time.Hour, func() (sample, error) {
 		return sample{Name: "fetched"}, nil
@@ -401,8 +401,8 @@ func TestGet_UnreadableFileNotDeleted(t *testing.T) {
 	_ = c.Set("k1", sample{Name: "secret"}, time.Hour)
 
 	path := c.filepath("k1")
-	os.Chmod(path, 0o000)
-	defer os.Chmod(path, 0o644)
+	_ = os.Chmod(path, 0o000)
+	defer func() { _ = os.Chmod(path, 0o644) }()
 
 	_, ok := c.Get("k1")
 	if ok {
@@ -410,7 +410,7 @@ func TestGet_UnreadableFileNotDeleted(t *testing.T) {
 	}
 
 	// File should NOT be deleted (permission error, not corruption)
-	os.Chmod(path, 0o644)
+	_ = os.Chmod(path, 0o644)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		t.Error("unreadable file was deleted — should be preserved")
 	}
