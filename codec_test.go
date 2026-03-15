@@ -1,6 +1,8 @@
 package xcache
 
 import (
+	"bytes"
+	"encoding/gob"
 	"testing"
 	"time"
 )
@@ -79,5 +81,51 @@ func TestJSONCodec_NestedStructs(t *testing.T) {
 	}
 	if got.Value.Meta["k"] != "v" {
 		t.Errorf("Meta = %v, want map[k:v]", got.Value.Meta)
+	}
+}
+
+// GobCodec is a test codec for verifying pluggable codec support.
+type GobCodec struct{}
+
+func (GobCodec) Marshal(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (GobCodec) Unmarshal(data []byte, v any) error {
+	return gob.NewDecoder(bytes.NewReader(data)).Decode(v)
+}
+
+func (GobCodec) Extension() string {
+	return ".gob"
+}
+
+func TestGobCodec_RoundTrip(t *testing.T) {
+	codec := GobCodec{}
+
+	original := entry[testStruct]{
+		Key:       "test-key",
+		ExpiresAt: time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC),
+		Value:     testStruct{Name: "hello", Count: 42},
+	}
+
+	data, err := codec.Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	var got entry[testStruct]
+	if err := codec.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+
+	if got.Key != original.Key {
+		t.Errorf("Key = %q, want %q", got.Key, original.Key)
+	}
+	if got.Value.Name != original.Value.Name || got.Value.Count != original.Value.Count {
+		t.Errorf("Value = %+v, want %+v", got.Value, original.Value)
 	}
 }

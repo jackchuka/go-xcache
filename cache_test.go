@@ -393,3 +393,42 @@ func TestGetOrSet_FnSuccessSetFails(t *testing.T) {
 		t.Error("expected error from Set failure")
 	}
 }
+
+func TestGet_UnreadableFileNotDeleted(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("perm"))
+
+	_ = c.Set("k1", sample{Name: "secret"}, time.Hour)
+
+	path := c.filepath("k1")
+	os.Chmod(path, 0o000)
+	defer os.Chmod(path, 0o644)
+
+	_, ok := c.Get("k1")
+	if ok {
+		t.Error("Get returned true for unreadable file")
+	}
+
+	// File should NOT be deleted (permission error, not corruption)
+	os.Chmod(path, 0o644)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Error("unreadable file was deleted — should be preserved")
+	}
+}
+
+func TestGetOrSet_EmptyKey(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("gos"))
+
+	called := false
+	_, err := c.GetOrSet("", time.Hour, func() (sample, error) {
+		called = true
+		return sample{Name: "should-not-be-called"}, nil
+	})
+	if called {
+		t.Error("fn was called for empty key")
+	}
+	if err == nil {
+		t.Error("expected error for empty key")
+	}
+}
