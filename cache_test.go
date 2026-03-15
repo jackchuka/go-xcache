@@ -432,3 +432,35 @@ func TestGetOrSet_EmptyKey(t *testing.T) {
 		t.Error("expected error for empty key")
 	}
 }
+
+func TestConcurrentSetGet(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("concurrent"))
+
+	const goroutines = 20
+	done := make(chan struct{}, goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer func() { done <- struct{}{} }()
+			key := fmt.Sprintf("key-%d", i)
+			val := sample{Name: fmt.Sprintf("val-%d", i)}
+			if err := c.Set(key, val, time.Hour); err != nil {
+				t.Errorf("Set(%q): %v", key, err)
+				return
+			}
+			got, ok := c.Get(key)
+			if !ok {
+				t.Errorf("Get(%q) returned false", key)
+				return
+			}
+			if got.Name != val.Name {
+				t.Errorf("Get(%q).Name = %q, want %q", key, got.Name, val.Name)
+			}
+		}(i)
+	}
+
+	for i := 0; i < goroutines; i++ {
+		<-done
+	}
+}
