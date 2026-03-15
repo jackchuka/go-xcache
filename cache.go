@@ -145,3 +145,36 @@ func (c *Cache[V]) Set(key string, value V, ttl time.Duration) error {
 
 	return nil
 }
+
+// Delete removes a single cache entry. Returns nil if the entry does not exist.
+func (c *Cache[V]) Delete(key string) error {
+	path := c.filepath(key)
+	err := os.Remove(path)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("xcache: delete: %w", err)
+	}
+	return nil
+}
+
+// Clear removes all files in this cache's directory.
+// Only removes files, not subdirectories (which may be other namespaces).
+func (c *Cache[V]) Clear() error {
+	entries, err := os.ReadDir(c.dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("xcache: clear: %w", err)
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		path := filepath.Join(c.dir, e.Name())
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("xcache: clear: %w", err)
+		}
+	}
+	return nil
+}

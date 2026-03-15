@@ -216,3 +216,97 @@ func TestSet_AtomicWrite(t *testing.T) {
 		t.Errorf("Name = %q, want %q", val.Name, "second")
 	}
 }
+
+func TestDelete_Existing(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("data"))
+
+	_ = c.Set("k1", sample{Name: "hello"}, time.Hour)
+
+	if err := c.Delete("k1"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	_, ok := c.Get("k1")
+	if ok {
+		t.Error("Get returned true after Delete")
+	}
+}
+
+func TestDelete_NotFound(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool")
+
+	err := c.Delete("nonexistent")
+	if err != nil {
+		t.Errorf("Delete nonexistent should not error, got: %v", err)
+	}
+}
+
+func TestClear(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("clearme"))
+
+	_ = c.Set("k1", sample{Name: "a"}, time.Hour)
+	_ = c.Set("k2", sample{Name: "b"}, time.Hour)
+
+	if err := c.Clear(); err != nil {
+		t.Fatalf("Clear: %v", err)
+	}
+
+	_, ok1 := c.Get("k1")
+	_, ok2 := c.Get("k2")
+	if ok1 || ok2 {
+		t.Error("entries remain after Clear")
+	}
+}
+
+func TestClear_DoesNotRemoveOtherNamespaces(t *testing.T) {
+	dir := testDir(t)
+	c1 := New[sample]("test-tool", WithNamespace("ns1"))
+	c2 := New[sample]("test-tool", WithNamespace("ns2"))
+
+	_ = c1.Set("k1", sample{Name: "a"}, time.Hour)
+	_ = c2.Set("k2", sample{Name: "b"}, time.Hour)
+
+	_ = c1.Clear()
+
+	val, ok := c2.Get("k2")
+	if !ok {
+		t.Error("Clear of ns1 removed ns2 entry")
+	}
+	if val.Name != "b" {
+		t.Errorf("Name = %q, want %q", val.Name, "b")
+	}
+
+	ns2Dir := filepath.Join(dir, "test-tool", "ns2")
+	if _, err := os.Stat(ns2Dir); os.IsNotExist(err) {
+		t.Error("Clear of ns1 removed ns2 directory")
+	}
+}
+
+func TestClear_EmptyNamespace(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool")
+
+	_ = c.Set("k1", sample{Name: "a"}, time.Hour)
+
+	if err := c.Clear(); err != nil {
+		t.Fatalf("Clear: %v", err)
+	}
+
+	_, ok := c.Get("k1")
+	if ok {
+		t.Error("entry remains after Clear")
+	}
+}
+
+func TestClear_NoDir(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("never-written"))
+
+	err := c.Clear()
+	if err != nil {
+		t.Errorf("Clear on non-existent dir should not error, got: %v", err)
+	}
+}
