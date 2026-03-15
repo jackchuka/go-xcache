@@ -1,6 +1,7 @@
 package xcache
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -308,5 +309,87 @@ func TestClear_NoDir(t *testing.T) {
 	err := c.Clear()
 	if err != nil {
 		t.Errorf("Clear on non-existent dir should not error, got: %v", err)
+	}
+}
+
+func TestGetOrSet_Miss(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("gos"))
+
+	called := false
+	val, err := c.GetOrSet("k1", time.Hour, func() (sample, error) {
+		called = true
+		return sample{Name: "fetched"}, nil
+	})
+	if err != nil {
+		t.Fatalf("GetOrSet: %v", err)
+	}
+	if !called {
+		t.Error("fn was not called on miss")
+	}
+	if val.Name != "fetched" {
+		t.Errorf("Name = %q, want %q", val.Name, "fetched")
+	}
+
+	val2, ok := c.Get("k1")
+	if !ok {
+		t.Fatal("value was not cached after GetOrSet")
+	}
+	if val2.Name != "fetched" {
+		t.Errorf("cached Name = %q, want %q", val2.Name, "fetched")
+	}
+}
+
+func TestGetOrSet_Hit(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("gos"))
+
+	_ = c.Set("k1", sample{Name: "cached"}, time.Hour)
+
+	called := false
+	val, err := c.GetOrSet("k1", time.Hour, func() (sample, error) {
+		called = true
+		return sample{Name: "fresh"}, nil
+	})
+	if err != nil {
+		t.Fatalf("GetOrSet: %v", err)
+	}
+	if called {
+		t.Error("fn was called on cache hit")
+	}
+	if val.Name != "cached" {
+		t.Errorf("Name = %q, want %q", val.Name, "cached")
+	}
+}
+
+func TestGetOrSet_FnError(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("gos"))
+
+	_, err := c.GetOrSet("k1", time.Hour, func() (sample, error) {
+		return sample{}, fmt.Errorf("fetch failed")
+	})
+	if err == nil {
+		t.Error("expected error from fn")
+	}
+}
+
+func TestGetOrSet_FnSuccessSetFails(t *testing.T) {
+	testDir(t)
+	c := New[sample]("test-tool", WithNamespace("readonly"))
+
+	os.MkdirAll(c.dir, 0o755)
+	os.Chmod(c.dir, 0o444)
+	defer os.Chmod(c.dir, 0o755)
+
+	val, err := c.GetOrSet("k1", time.Hour, func() (sample, error) {
+		return sample{Name: "fetched"}, nil
+	})
+
+	if val.Name != "fetched" {
+		t.Errorf("Name = %q, want %q", val.Name, "fetched")
+	}
+	if err == nil {
+		t.Error("expected error from Set failure")
 	}
 }

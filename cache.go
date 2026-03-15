@@ -178,3 +178,26 @@ func (c *Cache[V]) Clear() error {
 	}
 	return nil
 }
+
+// GetOrSet returns the cached value if present, otherwise calls fn to fetch it,
+// caches the result, and returns it. If fn succeeds but Set fails, the value
+// is still returned alongside the Set error.
+func (c *Cache[V]) GetOrSet(key string, ttl time.Duration, fn func() (V, error)) (V, error) {
+	if key == "" {
+		var zero V
+		return zero, fmt.Errorf("xcache: key must not be empty")
+	}
+
+	if v, ok := c.Get(key); ok {
+		return v, nil
+	}
+
+	v, err := fn()
+	if err != nil {
+		var zero V
+		return zero, err
+	}
+
+	setErr := c.Set(key, v, ttl)
+	return v, setErr
+}
