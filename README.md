@@ -1,9 +1,9 @@
 # go-xcache
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/jackchuka/go-xcache.svg)](https://pkg.go.dev/github.com/jackchuka/go-xcache)
-[![Go Report Card](https://goreportcard.com/badge/github.com/jackchuka/go-xcache)](https://goreportcard.com/report/github.com/jackchuka/go-xcache)
 [![Test](https://github.com/jackchuka/go-xcache/actions/workflows/test.yml/badge.svg)](https://github.com/jackchuka/go-xcache/actions/workflows/test.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jackchuka/go-xcache.svg)](https://pkg.go.dev/github.com/jackchuka/go-xcache)
+[![Release](https://img.shields.io/github/v/release/jackchuka/go-xcache?sort=semver)](https://github.com/jackchuka/go-xcache/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A generic, file-based, TTL-aware cache for Go CLI tools. Stores any struct under `$XDG_CACHE_HOME` with per-entry TTL, pluggable serialization, and configurable key encoding.
 
