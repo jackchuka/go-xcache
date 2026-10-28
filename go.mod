@@ -1,6 +1,6 @@
 module github.com/jackchuka/go-xcache
 
-go 1.26.5
+go 1.27.3
 
 require github.com/adrg/xdg v0.5.3
 
